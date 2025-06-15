@@ -10,19 +10,71 @@ SistemaRecomendacion::SistemaRecomendacion()
 
 // carga datos desde csv (idUsuario,idCancion,valoracion,...)
 void SistemaRecomendacion::cargarDatosCSV(const string& ruta) {
-    // TODO: abrir archivo 'ruta', leer línea a línea, parsear campos
-    //       y llamar a agregarValoracion(idUsuario, idCancion, valoracion)
+    ifstream archivo(ruta);
+    if (!archivo.is_open()) return;  // no se pudo abrir
+
+    string linea;
+    while (getline(archivo, linea)) {
+        if (linea.empty()) continue;
+
+        stringstream ss(linea);
+        string sU, sC, sV, sIgn;
+        getline(ss, sU, ',');
+        getline(ss, sC, ',');
+        getline(ss, sV, ',');
+        getline(ss, sIgn, ',');
+
+        int idU = stoi(sU);
+        int idC = stoi(sC);
+        float val = stof(sV);
+
+        agregarValoracion(idU, idC, val);
+    }
+
+    archivo.close();
 }
 
 // registra o actualiza una valoración
 void SistemaRecomendacion::agregarValoracion(int idUsuario,
                                              int idCancion,
                                              float valoracion) {
-    // TODO: 
-    // 1) crear o recuperar UsuarioPtr en hashUsuarios y arbolUsuarios
-    // 2) crear o recuperar CancionPtr en hashCanciones y arbolCanciones
-    // 3) llamar a usuario->agregarValoracion(...) y cancion->agregarValoracion(...)
-    // 4) llamar a actualizarTop(cancion)
+    // obtener o crear usuario
+    UsuarioPtr usu;
+    auto itU = hashUsuarios.find(idUsuario);
+    if (itU == hashUsuarios.end()) {
+        usu = make_shared<Usuario>(idUsuario);
+        hashUsuarios[idUsuario] = usu;
+        arbolUsuarios.insert(idUsuario, usu);
+    } else {
+        usu = itU->second;
+    }
+
+    // obtener o crear canción
+    CancionPtr can;
+    auto itC = hashCanciones.find(idCancion);
+    if (itC == hashCanciones.end()) {
+        can = make_shared<Cancion>(idCancion);
+        hashCanciones[idCancion] = can;
+        arbolCanciones.insert(idCancion, can);
+    } else {
+        can = itC->second;
+    }
+
+    // añadir valoración a ambos objetos
+    usu->agregarValoracion(idCancion, valoracion);
+    can->agregarValoracion(idUsuario, valoracion);
+
+    // actualizar top 10 global
+    // actualizarTop(can);
+}
+
+// mostrar los datos
+void SistemaRecomendacion::mostrarCanciones(){
+    arbolCanciones.display();
+}
+
+void SistemaRecomendacion::mostrarUsuarios(){
+    arbolUsuarios.display();
 }
 
 // devuelve primeros n usuarios que valoraron una canción

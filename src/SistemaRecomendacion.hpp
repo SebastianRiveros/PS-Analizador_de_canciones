@@ -10,7 +10,7 @@ using namespace std;
 
 class SistemaRecomendacion {
 public:
-    // constructor vacío: use orden fijo M=4 del BPlusTree
+    // constructor vacío: use orden fijo M=64 del BPlusTree
     SistemaRecomendacion();
 
     // carga datos desde csv (idUsuario,idCancion,valoracion)
@@ -19,6 +19,10 @@ public:
     // registra o actualiza una valoración
     void agregarValoracion(int idUsuario, int idCancion, float valoracion);
 
+    //mostrar datos 
+    void mostrarCanciones();
+    void mostrarUsuarios();
+    
     // primeros n usuarios que votaron una canción
     vector<int> getFirstVoters(int idCancion, int n = 5) const;
 
@@ -41,8 +45,8 @@ public:
     vector<pair<int,float>> buscarValoracionesPorUsuario(int idUsuario) const;
 
 private:
-    BPlusTree<int, CancionPtr> arbolCanciones;    // M = 4
-    BPlusTree<int, UsuarioPtr>  arbolUsuarios;    // M = 4
+    BPlusTree<int, CancionPtr> arbolCanciones;    // M = 64
+    BPlusTree<int, UsuarioPtr>  arbolUsuarios;    // M = 64
     unordered_map<int, CancionPtr> hashCanciones;
     unordered_map<int, UsuarioPtr>  hashUsuarios;
     vector<pair<int,float>> top10;
