@@ -10,7 +10,7 @@
 //   V: value type
 //   M: order of the tree (max children per node)
 
-template<typename K, typename V, int M = 4>
+template<typename K, typename V, int M = 64>
 class BPlusTree {
 private:
     static const int ORDER = M;

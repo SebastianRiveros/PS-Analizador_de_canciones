@@ -1,57 +1,54 @@
-#ifndef SISTEMA_RECOMENDACION_H
-#define SISTEMA_RECOMENDACION_H
-
+// src/SistemaRecomendacion.hpp
+#pragma once
 #include <string>
 #include <vector>
-#include <memory>
-#include <utility>
-#include "BPlusTree.h"
-#include "Persona.h"
-#include "Cancion.h"
-#include "Valoracion.h"
-
+#include <unordered_map>
+#include "BPlusTree.hpp"
+#include "Cancion.hpp"
+#include "Usuario.hpp"
 using namespace std;
 
 class SistemaRecomendacion {
 public:
-    // Constructor con orden configurable para los B+Trees
-    explicit SistemaRecomendacion(int orden = 4);
+    // constructor vacío: use orden fijo M=4 del BPlusTree
+    SistemaRecomendacion();
 
-    // Carga datos desde CSV de valoraciones (ruta de archivo)
+    // carga datos desde csv (idUsuario,idCancion,valoracion)
     void cargarDatosCSV(const string& ruta);
 
-    // Muestra en consola el contenido de personas, canciones y valoraciones
-    void mostrarContenido() const;
+    // registra o actualiza una valoración
+    void agregarValoracion(int idUsuario, int idCancion, float valoracion);
 
-    // Registro de una nueva valoración manual
-    void agregarValoracion(int idUsuario, int idCancion,
-                           double puntuacion, const string& momento);
+    // primeros n usuarios que votaron una canción
+    vector<int> getFirstVoters(int idCancion, int n = 5) const;
 
-    // Obtiene los primeros N usuarios que valoraron una canción
-    vector<int> getFirstVoters(int idCancion, int limite = 5) const;
-
-    // Obtiene el top K de canciones más valoradas globalmente
+    // top k canciones por promedio
     vector<int> getTopSongs(int k = 10) const;
 
-    // Encuentra K usuarios similares a un usuario dado
+    // k usuarios más parecidos (Manhattan)
     vector<int> getSimilarUsers(int idUsuario, int k = 5) const;
 
-    // Recomienda K canciones a un usuario basadas en vecinos
+    // recomienda k canciones basadas en vecinos
     vector<int> recommendSongs(int idUsuario, int k = 10) const;
 
-    // Agrupa usuarios en kClusters según afinidad musical
-    vector<vector<int>> clusterUsuarios(int kClusters) const;
+    // clustering simple en k grupos
+    vector<vector<int>> clusterUsuarios(int k) const;
 
-    // Búsqueda de valoraciones por canción o por usuario
-    vector<shared_ptr<Valoracion>> buscarValoracionesPorCancion(int idCancion) const;
-    vector<shared_ptr<Valoracion>> buscarValoracionesPorUsuario(int idUsuario) const;
+    // todas las valoraciones de una canción
+    vector<pair<int,float>> buscarValoracionesPorCancion(int idCancion) const;
+
+    // todas las valoraciones de un usuario
+    vector<pair<int,float>> buscarValoracionesPorUsuario(int idUsuario) const;
 
 private:
-    // Árboles B+ para almacenamiento y consulta eficiente
-    BPlusTree<int, shared_ptr<Persona>>                       arbolPersonas;
-    BPlusTree<int, shared_ptr<Cancion>>                       arbolCanciones;
+    BPlusTree<int, CancionPtr> arbolCanciones;    // M = 4
+    BPlusTree<int, UsuarioPtr>  arbolUsuarios;    // M = 4
+    unordered_map<int, CancionPtr> hashCanciones;
+    unordered_map<int, UsuarioPtr>  hashUsuarios;
+    vector<pair<int,float>> top10;
 
-    // vectores solo para almacenar las listas :y
+    // helpers
+    void actualizarTop(const CancionPtr& cancion);
+    float distanciaManhattan(const unordered_map<int,float>& a,
+                             const unordered_map<int,float>& b) const;
 };
-
-#endif 

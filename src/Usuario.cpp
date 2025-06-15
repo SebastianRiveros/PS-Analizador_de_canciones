@@ -1,12 +1,10 @@
-#include <unordered_map>
-#include <memory>
-using namespace std;
+// src/Usuario.cpp
+#include "Usuario.hpp"
 
-class Usuario {
-public:
-    int idUsuario;
-    unordered_map<int, float> valoraciones; // idCancion → valoración
-    explicit Usuario(int id): idUsuario(id) {}
-};
+Usuario::Usuario(int id)
+    : idUsuario(id)
+{}
 
-using UsuarioPtr = shared_ptr<Usuario>;
+void Usuario::agregarValoracion(int idCancion, float valoracion) {
+    valoraciones[idCancion] = valoracion;
+}
