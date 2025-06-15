@@ -35,9 +35,7 @@ void SistemaRecomendacion::cargarDatosCSV(const string& ruta) {
 }
 
 // registra o actualiza una valoración
-void SistemaRecomendacion::agregarValoracion(int idUsuario,
-                                             int idCancion,
-                                             float valoracion) {
+void SistemaRecomendacion::agregarValoracion(int idUsuario, int idCancion, float valoracion) {
     // obtener o crear usuario
     UsuarioPtr usu;
     auto itU = hashUsuarios.find(idUsuario);
@@ -78,12 +76,25 @@ void SistemaRecomendacion::mostrarUsuarios(){
 }
 
 // devuelve primeros n usuarios que valoraron una canción
-vector<int> SistemaRecomendacion::getFirstVoters(int idCancion,
-                                                 int n) const {
-    // TODO: 
-    // 1) buscar CancionPtr con arbolCanciones.search(idCancion)
-    // 2) iterar sobre cancion->valoraciones y tomar hasta n ids
-    return {};
+void SistemaRecomendacion::verPrimerosVotantes(int idCancion, int n) const {
+    auto it = hashCanciones.find(idCancion);
+    if (it == hashCanciones.end()) {
+        cout << "Canción " << idCancion << " no encontrada.\n";
+        return;
+    }
+    const auto& mapa = it->second->valoraciones;
+    if (mapa.empty()) {
+        cout << "La canción " << idCancion << " no tiene valoraciones.\n";
+        return;
+    }
+
+    cout << "Primeros " << n << " votantes de la canción " << idCancion << ":\n";
+    int contador = 0;
+    for (const auto& par : mapa) {
+        cout << "  - Usuario " << par.first 
+             << " valoró " << par.second << "\n";
+        if (++contador >= n) break;
+    }
 }
 
 // devuelve top k canciones por promedio

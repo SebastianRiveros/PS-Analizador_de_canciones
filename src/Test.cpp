@@ -48,5 +48,6 @@ int main() {
     sistema.cargarDatosCSV("../data/ratings.csv");
     sistema.mostrarCanciones();
     sistema.mostrarUsuarios();
+    sistema.verPrimerosVotantes(1, 2);
     return 0;
 }

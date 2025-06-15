@@ -22,9 +22,9 @@ public:
     //mostrar datos 
     void mostrarCanciones();
     void mostrarUsuarios();
-    
+
     // primeros n usuarios que votaron una canción
-    vector<int> getFirstVoters(int idCancion, int n = 5) const;
+    void verPrimerosVotantes(int idCancion, int n) const;
 
     // top k canciones por promedio
     vector<int> getTopSongs(int k = 10) const;
