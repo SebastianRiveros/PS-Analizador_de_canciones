@@ -3,6 +3,8 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm> // Para std::sort
+#include <cstdlib> // para rand, srand
+#include <ctime>   // para time
 
 // constructor: inicializa árboles b+ con orden fijo del template
 SistemaRecomendacion::SistemaRecomendacion()
@@ -64,7 +66,7 @@ void SistemaRecomendacion::agregarValoracion(int idUsuario, int idCancion, float
     can->agregarValoracion(idUsuario, valoracion);
 
     // actualizar top 10 global
-    // actualizarTop(can);
+    actualizarTop(can);
 }
 
 // mostrar los datos
@@ -249,7 +251,80 @@ vector<int> SistemaRecomendacion::recommendSongs(int idUsuario,
 // agrupa usuarios en k clusters (implementación opcional)
 vector<vector<int>> SistemaRecomendacion::clusterUsuarios(int k) const {
     // TODO: implementar clustering (p.ej. k-means ligero) o dejar vacío
-    return {};
+    vector<vector<int>> clusters(k);
+    vector<unordered_map<int, float>> centroides(k); // Cada centroide es un mapa de valoraciones
+    vector<int> userIds;
+
+    // 1. Obtener ids de todos los usuarios
+    for (const auto& par : hashUsuarios) {
+        userIds.push_back(par.first);
+    }
+
+    if (userIds.size() < k || k <= 0) {
+        std::cout << "No se puede agrupar en " << k << " clusters con solo " << userIds.size() << " usuarios.\n";
+        return {};
+    }
+
+    // 2. Inicializar centroides aleatorios
+    srand(time(nullptr));
+    for (int i = 0; i < k; ++i) {
+        int randomIndex = rand() % userIds.size();
+        centroides[i] = hashUsuarios.at(userIds[randomIndex])->valoraciones;
+    }
+
+    // 3. Iterar (fijo a 5 iteraciones para simplicidad)
+    for (int iter = 0; iter < 5; ++iter) {
+        // Limpiar clusters
+        for (auto& cluster : clusters) cluster.clear();
+
+        // Asignar usuarios al centroide más cercano
+        for (int id : userIds) {
+            const auto& valoraciones = hashUsuarios.at(id)->valoraciones;
+            float minDist = distanciaManhattan(valoraciones, centroides[0]);
+            int minIndex = 0;
+            for (int i = 1; i < k; ++i) {
+                float dist = distanciaManhattan(valoraciones, centroides[i]);
+                if (dist < minDist) {
+                    minDist = dist;
+                    minIndex = i;
+                }
+            }
+            clusters[minIndex].push_back(id);
+        }
+
+        // Recalcular centroides promediando los usuarios de cada cluster
+        for (int i = 0; i < k; ++i) {
+            unordered_map<int, float> nuevoCentroide;
+            unordered_map<int, int> conteo;
+
+            for (int id : clusters[i]) {
+                const auto& valoraciones = hashUsuarios.at(id)->valoraciones;
+                for (const auto& par : valoraciones) {
+                    nuevoCentroide[par.first] += par.second;
+                    conteo[par.first]++;
+                }
+            }
+
+            for (auto& par : nuevoCentroide) {
+                int key = par.first;
+                par.second /= conteo[key]; // Promedio
+            }
+
+            centroides[i] = nuevoCentroide;
+        }
+    }
+
+    // Mostrar clusters
+    for (int i = 0; i < k; ++i) {
+        std::cout << "Cluster " << i+1 << ": ";
+        for (int id : clusters[i]) {
+            std::cout << id << " ";
+        }
+        std::cout << "\n";
+    }
+
+    return clusters;    //Se retorna un vector<vector<int>>, donde cada subvector tiene los IDs de los usuarios en ese cluster.
+
 }
 
 // lista pares (idUsuario, valoracion) de una canción
@@ -270,10 +345,30 @@ vector<pair<int,float>> SistemaRecomendacion::buscarValoracionesPorUsuario(
     return {};
 }
 
+
 // mantiene actualizado el vector top10 con la canción dada
 void SistemaRecomendacion::actualizarTop(const CancionPtr& cancion) {
     // TODO:
     // 1) obtener id y promedio de 'cancion'
     // 2) insertar o actualizar par (id, promedio) en 'top10'
     // 3) ordenar descendente y recortar tamaño a 10
+    int id = cancion->idCancion;
+    float promedio = cancion->obtenerPromedio();
+
+    // eliminar si ya estaba
+    top10.erase(remove_if(top10.begin(), top10.end(),
+                        [id](const pair<int, float>& p) { return p.first == id; }),
+                top10.end());
+
+    top10.emplace_back(id, promedio);
+
+    // ordenar y mantener top 10
+    sort(top10.begin(), top10.end(),
+        [](const pair<int, float>& a, const pair<int, float>& b) {
+            return a.second > b.second;
+        });
+
+    if (top10.size() > 10) {
+        top10.resize(10);
+    }
 }
