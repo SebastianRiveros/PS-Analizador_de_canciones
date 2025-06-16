@@ -45,9 +45,20 @@ int main() {
     
     // Pruebas de carga de datos:
     SistemaRecomendacion sistema;
+    cout << "\nCargando datos desde CSV..." << std::endl;
     sistema.cargarDatosCSV("../data/ratings.csv");
+    cout << "Datos cargados. Mostrando canciones y usuarios:" << std::endl;
     sistema.mostrarCanciones();
+    cout << "Mostrando Usuarios" << std::endl;
     sistema.mostrarUsuarios();
+    cout << "Primeros votantes de la canción 1:" << std::endl;
     sistema.verPrimerosVotantes(1, 2);
+    cout << "Top 5 canciones:" << std::endl;
+    sistema.getTopSongs(5);
+    cout << "Usuarios 5 usuarios similares al usuario 1:" << std::endl;
+    sistema.getSimilarUsers(1, 5);
+    cout << "Recomendando 5 canciones para el usuario 1:" << std::endl;
+    sistema.recommendSongs(1, 5);
+
     return 0;
 }

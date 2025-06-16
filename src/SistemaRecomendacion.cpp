@@ -2,6 +2,7 @@
 #include "SistemaRecomendacion.hpp"
 #include <fstream>
 #include <sstream>
+#include <algorithm> // Para std::sort
 
 // constructor: inicializa árboles b+ con orden fijo del template
 SistemaRecomendacion::SistemaRecomendacion()
@@ -99,36 +100,150 @@ void SistemaRecomendacion::verPrimerosVotantes(int idCancion, int n) const {
 
 // devuelve top k canciones por promedio
 vector<int> SistemaRecomendacion::getTopSongs(int k) const {
-    // TODO: leer los primeros k elementos de 'top10' y devolver sus ids
-    return {};
+    // Recorrer todos los nodos hoja del árbol de canciones y recolectar (id, promedio)
+    using Pair = pair<int, float>;
+    vector<Pair> canciones;
+    // Eliminada la línea de acceso a root, usamos hashCanciones
+    for (const auto& par : hashCanciones) {
+        int id = par.first;
+        float prom = par.second->obtenerPromedio();
+        canciones.emplace_back(id, prom);
+    }
+    // Ordenar por promedio descendente
+    sort(canciones.begin(), canciones.end(), [](const Pair& a, const Pair& b) {
+        return a.second > b.second;
+    });
+    // Tomar los primeros k
+    vector<int> result;
+    int n = std::min(k, static_cast<int>(canciones.size()));
+    if (canciones.size() < k) {
+        std::cout << "Solo hay " << canciones.size() << " canciones disponibles.\n";
+    }
+    for (int i = 0; i < n; ++i) {
+        result.push_back(canciones[i].first);
+    }
+    // Imprimir las k canciones del top k
+    std::cout << "Top " << n << " canciones (id, promedio):\n";
+    for (int i = 0; i < n; ++i) {
+        std::cout << i+1 << ". ID: " << canciones[i].first << ", Promedio: " << canciones[i].second << std::endl;
+    }
+    return result;
 }
 
 // calcula distancia manhattan entre dos mapas de valoraciones
+// TODO: recorrer claves comunes y acumular |a[key] - b[key]|
 float SistemaRecomendacion::distanciaManhattan(
         const unordered_map<int,float>& a,
         const unordered_map<int,float>& b) const {
-    // TODO: recorrer claves comunes y acumular |a[key] - b[key]|
-    return 0.0f;
+    float suma = 0.0f;
+    for (const auto& par : a) {
+        int key = par.first;
+        auto it = b.find(key);
+        if (it != b.end()) {
+            suma += std::abs(par.second - it->second);
+        }
+    }
+    return suma;
 }
 
 // devuelve k usuarios más similares a idUsuario
-vector<int> SistemaRecomendacion::getSimilarUsers(int idUsuario,
-                                                  int k) const {
     // TODO:
     // 1) recuperar mapa base de hashUsuarios[idUsuario]
     // 2) para cada otro usuario calcular distanciaManhattan
     // 3) ordenar por distancia y devolver primeros k ids
-    return {};
+vector<int> SistemaRecomendacion::getSimilarUsers(int idUsuario,
+                                                  int k) const {
+    // 1) recuperar mapa base de hashUsuarios[idUsuario]
+    auto itBase = hashUsuarios.find(idUsuario);
+    if (itBase == hashUsuarios.end()) {
+        std::cout << "Usuario " << idUsuario << " no encontrado.\n";
+        return {};
+    }
+    const auto& mapaBase = itBase->second->valoraciones;
+    // 2) para cada otro usuario calcular distanciaManhattan
+    using DistUser = pair<float, int>; // (distancia, id)
+    vector<DistUser> distancias;
+    for (const auto& par : hashUsuarios) {
+        int otroId = par.first;
+        if (otroId == idUsuario) continue;
+        const auto& mapaOtro = par.second->valoraciones;
+        float dist = distanciaManhattan(mapaBase, mapaOtro);
+        distancias.emplace_back(dist, otroId);
+    }
+    // 3) ordenar por distancia y devolver primeros k ids
+    sort(distancias.begin(), distancias.end());
+    vector<int> similares;
+    int n = std::min(k, static_cast<int>(distancias.size()));
+    for (int i = 0; i < n; ++i) {
+        similares.push_back(distancias[i].second);
+    }
+    // Imprimir resultado
+    std::cout << "Los usuarios con gustos parecidos son: ";
+    for (int i = 0; i < n; ++i) {
+        std::cout << similares[i];
+        if (i < n-1) std::cout << ", ";
+    }
+    std::cout << std::endl;
+    return similares;
 }
 
+
+// TODO:
+// 1) obtener vecinos con getSimilarUsers(idUsuario, k)
+// 2) recolectar canciones valoradas por vecinos y no por usuario
+// 3) calcular promedio por canción, ordenar desc y devolver k ids
 // recomienda k canciones basadas en vecinos de idUsuario
 vector<int> SistemaRecomendacion::recommendSongs(int idUsuario,
                                                  int k) const {
-    // TODO:
-    // 1) obtener vecinos con getSimilarUsers(idUsuario, k)
-    // 2) recolectar canciones valoradas por vecinos y no por usuario
-    // 3) calcular promedio por canción, ordenar desc y devolver k ids
-    return {};
+    // 1) Obtener vecinos similares
+    vector<int> vecinos = getSimilarUsers(idUsuario, k);
+    // 2) Obtener canciones ya escuchadas por el usuario
+    auto itU = hashUsuarios.find(idUsuario);
+    if (itU == hashUsuarios.end()) {
+        std::cout << "Usuario " << idUsuario << " no encontrado.\n";
+        return {};
+    }
+    const auto& valoracionesUsuario = itU->second->valoraciones;
+    // 3) Recolectar canciones valoradas por vecinos y no por el usuario
+    unordered_map<int, vector<float>> cancionesVecinos; // idCancion -> lista de valoraciones
+    for (int vecinoId : vecinos) {
+        auto itVecino = hashUsuarios.find(vecinoId);
+        if (itVecino == hashUsuarios.end()) continue;
+        for (const auto& par : itVecino->second->valoraciones) {
+            int idCancion = par.first;
+            float val = par.second;
+            if (valoracionesUsuario.find(idCancion) == valoracionesUsuario.end()) {
+                cancionesVecinos[idCancion].push_back(val);
+            }
+        }
+    }
+    // 4) Calcular promedio por canción
+    using Pair = pair<int, float>;
+    vector<Pair> recomendaciones;
+    for (const auto& par : cancionesVecinos) {
+        float suma = 0.0f;
+        for (float v : par.second) suma += v;
+        float prom = suma / par.second.size();
+        recomendaciones.emplace_back(par.first, prom);
+    }
+    // 5) Ordenar por promedio descendente
+    sort(recomendaciones.begin(), recomendaciones.end(), [](const Pair& a, const Pair& b) {
+        return a.second > b.second;
+    });
+    // 6) Tomar los primeros k
+    vector<int> result;
+    int n = std::min(k, static_cast<int>(recomendaciones.size()));
+    if (recomendaciones.size() < k) {
+        std::cout << "Solo hay " << recomendaciones.size() << " recomendaciones posibles.\n";
+    }
+    std::cout << "Canciones recomendadas para el usuario " << idUsuario << ": ";
+    for (int i = 0; i < n; ++i) {
+        result.push_back(recomendaciones[i].first);
+        std::cout << recomendaciones[i].first;
+        if (i < n-1) std::cout << ", ";
+    }
+    std::cout << std::endl;
+    return result;
 }
 
 // agrupa usuarios en k clusters (implementación opcional)

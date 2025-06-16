@@ -26,13 +26,13 @@ public:
     // primeros n usuarios que votaron una canción
     void verPrimerosVotantes(int idCancion, int n) const;
 
-    // top k canciones por promedio
+    // top k canciones por promedio BENJA
     vector<int> getTopSongs(int k = 10) const;
 
-    // k usuarios más parecidos (Manhattan)
+    // k usuarios más parecidos (Manhattan) BENJA
     vector<int> getSimilarUsers(int idUsuario, int k = 5) const;
 
-    // recomienda k canciones basadas en vecinos
+    // recomienda k canciones basadas en vecinos BENJA
     vector<int> recommendSongs(int idUsuario, int k = 10) const;
 
     // clustering simple en k grupos
