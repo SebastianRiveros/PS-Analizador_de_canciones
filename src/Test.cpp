@@ -2,7 +2,7 @@
 #include "SistemaRecomendacion.hpp"
 #include "BPlusTree.hpp"
 
-int main() {
+/*int main() {
     // Crear un B+ Tree de orden 64 (M = 4)
     BPlusTree<int, std::string, 64> tree;
 
@@ -78,3 +78,4 @@ int main() {
 >>>>>>> 62fc9f5 (ajustes)
     return 0;
 }
+*/
