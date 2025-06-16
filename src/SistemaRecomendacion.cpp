@@ -333,7 +333,17 @@ vector<pair<int,float>> SistemaRecomendacion::buscarValoracionesPorCancion(
     // TODO:
     // 1) buscar CancionPtr con arbolCanciones.search(idCancion)
     // 2) copiar todos los pares (idUsuario, valoracion) en un vector
-    return {};
+    vector<pair<int, float>> result;
+    auto it = hashCanciones.find(idCancion);
+
+    if (it != hashCanciones.end()) {
+        const auto& valoraciones = it->second->valoraciones;
+        for (const auto& par : valoraciones) {
+            result.push_back(par);
+        }
+    }
+
+    return result;
 }
 
 // lista pares (idCancion, valoracion) de un usuario
@@ -342,7 +352,18 @@ vector<pair<int,float>> SistemaRecomendacion::buscarValoracionesPorUsuario(
     // TODO:
     // 1) buscar UsuarioPtr con arbolUsuarios.search(idUsuario)
     // 2) copiar todos los pares (idCancion, valoracion) en un vector
-    return {};
+    vector<pair<int, float>> result;
+    auto it = hashUsuarios.find(idUsuario);
+
+    if (it != hashUsuarios.end()) {
+        const auto& valoraciones = it->second->valoraciones;
+        for (const auto& par : valoraciones) {
+            result.push_back(par);
+        }
+    }
+
+    return result;
+
 }
 
 
