@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <thread>
+#include <chrono>
 
 using namespace std;
 
@@ -14,23 +16,84 @@ SistemaRecomendacion::SistemaRecomendacion()
 
 // carga datos desde csv (idUsuario,idCancion,valoracion,...)
 void SistemaRecomendacion::cargarDatosCSV(const string& ruta) {
-    ifstream archivo(ruta);
-    if (!archivo.is_open()) return;
+    using namespace std::chrono;
+    ifstream archivo(ruta); // Abrir el archivo CSV
+    if (!archivo.is_open()) return; // Si no se puede abrir, salir
 
+    // Leer todas las líneas del archivo y guardarlas en un vector
+    vector<string> lineas;
     string linea;
     while (getline(archivo, linea)) {
-        if (linea.empty()) continue;
-        stringstream ss(linea);
+        if (!linea.empty()) lineas.push_back(linea); // Ignorar líneas vacías
+    }
+    archivo.close(); // Cerrar el archivo
+
+    // --- Parsing secuencial (sin hilos) ---
+    vector<tuple<int, int, float>> datos_secuencial;
+    auto start_seq = high_resolution_clock::now(); // Iniciar medición de parsing secuencial
+    for (size_t i = 0; i < lineas.size(); ++i) {
+        stringstream ss(lineas[i]);
         string sU, sC, sV, sIgn;
         getline(ss, sU, ',');
         getline(ss, sC, ',');
         getline(ss, sV, ',');
-        // ignoramos campo extra
-        //getline(ss, sIgn, ',');
         int idU = stoi(sU), idC = stoi(sC);
         float val = stof(sV);
-        agregarValoracion(idU, idC, val);
+        datos_secuencial.emplace_back(idU, idC, val);
     }
+    auto end_seq = high_resolution_clock::now(); // Fin de parsing secuencial
+    auto dur_seq = duration_cast<milliseconds>(end_seq - start_seq).count();
+
+    // --- Parsing usando hilos ---
+    unsigned int num_threads = std::thread::hardware_concurrency(); // Detectar núcleos/hilos disponibles
+    if (num_threads == 0) num_threads = 4; // Si no se puede detectar, usar 4 por defecto
+    size_t total = lineas.size(); // Total de líneas a procesar
+    size_t bloque = (total + num_threads - 1) / num_threads; // Tamaño de bloque por hilo
+
+    vector<vector<tuple<int, int, float>>> datos_por_hilo(num_threads);
+    vector<std::thread> hilos;
+
+    auto start_parallel = high_resolution_clock::now(); // Iniciar medición de parsing paralelo
+    auto parsear_bloque = [&](size_t inicio, size_t fin, size_t idx_hilo) {
+        auto& datos = datos_por_hilo[idx_hilo];
+        for (size_t i = inicio; i < fin && i < total; ++i) {
+            stringstream ss(lineas[i]);
+            string sU, sC, sV, sIgn;
+            getline(ss, sU, ',');
+            getline(ss, sC, ',');
+            getline(ss, sV, ',');
+            int idU = stoi(sU), idC = stoi(sC);
+            float val = stof(sV);
+            datos.emplace_back(idU, idC, val);
+        }
+    };
+    for (unsigned int t = 0; t < num_threads; ++t) {
+        size_t inicio = t * bloque;
+        size_t fin = std::min(inicio + bloque, total);
+        hilos.emplace_back(parsear_bloque, inicio, fin, t);
+    }
+    for (auto& h : hilos) h.join();
+    auto end_parallel = high_resolution_clock::now(); // Fin de parsing paralelo
+    auto dur_parallel = duration_cast<milliseconds>(end_parallel - start_parallel).count();
+
+    // --- Inserción en la estructura principal (solo una vez, usando los datos parseados con hilos) ---
+    for (const auto& datos : datos_por_hilo) {
+        for (const auto& tupla : datos) {
+            int idU, idC; float val;
+            std::tie(idU, idC, val) = tupla;
+            agregarValoracion(idU, idC, val);
+        }
+    }
+
+    // Imprimir los tiempos de parsing
+    cout << "Tiempo de parsing secuencial: " << dur_seq << " ms" << endl;
+    cout << "Tiempo de parsing usando hilos: " << dur_parallel << " ms" << endl;
+    /*
+    Explicación:
+    - Se mide el tiempo de parsing (lectura y conversión de texto a datos) primero de forma secuencial y luego usando hilos.
+    - El tiempo de inserción en la estructura principal no se incluye en la comparación, solo se hace una vez.
+    - Así puedes comparar el beneficio real de usar hilos solo para el parsing y ver si el orden afecta los resultados.
+    */
 }
 
 // registra o actualiza una valoración
