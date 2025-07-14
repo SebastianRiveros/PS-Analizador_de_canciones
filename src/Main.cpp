@@ -44,7 +44,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
     case WM_CREATE: {
         // ruta CSV
-        CreateWindowEx(0, "EDIT", "../data/ratings_s.csv",
+        CreateWindowEx(0, "EDIT", "../data/ratings_big.csv",
             WS_CHILD|WS_VISIBLE|WS_BORDER, 10,10,250,20,
             hWnd, (HMENU)IDC_EDIT_CSV, nullptr, nullptr);
         CreateWindow("BUTTON","Cargar CSV",

@@ -6,6 +6,8 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <atomic>
+#include <mutex>
 
 using namespace std;
 
@@ -28,30 +30,15 @@ void SistemaRecomendacion::cargarDatosCSV(const string& ruta) {
     }
     archivo.close(); // Cerrar el archivo
 
-    // --- Parsing secuencial (sin hilos) ---
-    vector<tuple<int, int, float>> datos_secuencial;
-    auto start_seq = high_resolution_clock::now(); // Iniciar medición de parsing secuencial
-    for (size_t i = 0; i < lineas.size(); ++i) {
-        stringstream ss(lineas[i]);
-        string sU, sC, sV, sIgn;
-        getline(ss, sU, ',');
-        getline(ss, sC, ',');
-        getline(ss, sV, ',');
-        int idU = stoi(sU), idC = stoi(sC);
-        float val = stof(sV);
-        datos_secuencial.emplace_back(idU, idC, val);
-    }
-    auto end_seq = high_resolution_clock::now(); // Fin de parsing secuencial
-    auto dur_seq = duration_cast<milliseconds>(end_seq - start_seq).count();
-
-    // --- Parsing usando hilos ---
-    unsigned int num_threads = std::thread::hardware_concurrency(); // Detectar núcleos/hilos disponibles
-    if (num_threads == 0) num_threads = 4; // Si no se puede detectar, usar 4 por defecto
+    // --- Parsing usando 4 hilos con barra de progreso ---
+    unsigned int num_threads = 4; // Fijar a 4 hilos
     size_t total = lineas.size(); // Total de líneas a procesar
     size_t bloque = (total + num_threads - 1) / num_threads; // Tamaño de bloque por hilo
 
     vector<vector<tuple<int, int, float>>> datos_por_hilo(num_threads);
     vector<std::thread> hilos;
+    std::atomic<size_t> lineas_procesadas(0); // Contador global atómico
+    std::mutex print_mtx; // Mutex para impresión ordenada
 
     auto start_parallel = high_resolution_clock::now(); // Iniciar medición de parsing paralelo
     auto parsear_bloque = [&](size_t inicio, size_t fin, size_t idx_hilo) {
@@ -65,6 +52,22 @@ void SistemaRecomendacion::cargarDatosCSV(const string& ruta) {
             int idU = stoi(sU), idC = stoi(sC);
             float val = stof(sV);
             datos.emplace_back(idU, idC, val);
+            // Actualizar contador global
+            size_t procesadas = ++lineas_procesadas;
+            // Imprimir barra de progreso cada 1% o al finalizar
+            if (procesadas % (total / 100 == 0 ? 1 : total / 100) == 0 || procesadas == total) {
+                std::lock_guard<std::mutex> lock(print_mtx);
+                int percent = static_cast<int>((procesadas * 100) / total);
+                int barWidth = 50;
+                int pos = (percent * barWidth) / 100;
+                cout << "\r[";
+                for (int j = 0; j < barWidth; ++j) {
+                    if (j < pos) cout << "=";
+                    else if (j == pos) cout << ">";
+                    else cout << " ";
+                }
+                cout << "] " << percent << "%" << flush;
+            }
         }
     };
     for (unsigned int t = 0; t < num_threads; ++t) {
@@ -73,6 +76,7 @@ void SistemaRecomendacion::cargarDatosCSV(const string& ruta) {
         hilos.emplace_back(parsear_bloque, inicio, fin, t);
     }
     for (auto& h : hilos) h.join();
+    cout << "\r[==================================================] 100%\n"; // Barra completa al final
     auto end_parallel = high_resolution_clock::now(); // Fin de parsing paralelo
     auto dur_parallel = duration_cast<milliseconds>(end_parallel - start_parallel).count();
 
@@ -85,14 +89,13 @@ void SistemaRecomendacion::cargarDatosCSV(const string& ruta) {
         }
     }
 
-    // Imprimir los tiempos de parsing
-    cout << "Tiempo de parsing secuencial: " << dur_seq << " ms" << endl;
-    cout << "Tiempo de parsing usando hilos: " << dur_parallel << " ms" << endl;
+    // Imprimir el tiempo de parsing con hilos
+    cout << "Tiempo de parsing usando 4 hilos: " << dur_parallel << " ms" << endl;
     /*
     Explicación:
-    - Se mide el tiempo de parsing (lectura y conversión de texto a datos) primero de forma secuencial y luego usando hilos.
+    - Se fija el número de hilos en 4.
+    - Se muestra una barra de progreso en la terminal que avanza del 0% al 100%.
     - El tiempo de inserción en la estructura principal no se incluye en la comparación, solo se hace una vez.
-    - Así puedes comparar el beneficio real de usar hilos solo para el parsing y ver si el orden afecta los resultados.
     */
 }
 
