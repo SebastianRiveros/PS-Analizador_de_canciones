@@ -80,38 +80,14 @@ void SistemaRecomendacion::cargarDatosCSV(const string& ruta) {
     auto end_parallel = high_resolution_clock::now(); // Fin de parsing paralelo
     auto dur_parallel = duration_cast<milliseconds>(end_parallel - start_parallel).count();
 
-    // --- Inserción en la estructura principal usando 4 hilos y barra de progreso ---
-    std::atomic<size_t> valoraciones_procesadas(0);
-    size_t total_valoraciones = total; // total ya calculado antes
-    std::mutex print_mtx_val;
-    std::vector<std::thread> hilos_insertar;
-    auto insertar_bloque = [&](size_t inicio, size_t fin, size_t idx_hilo) {
-        const auto& datos = datos_por_hilo[idx_hilo];
-        for (size_t i = 0; i < datos.size(); ++i) {
+    // --- Inserción en la estructura principal (solo una vez, usando los datos parseados con hilos) ---
+    for (const auto& datos : datos_por_hilo) {
+        for (const auto& tupla : datos) {
             int idU, idC; float val;
-            std::tie(idU, idC, val) = datos[i];
+            std::tie(idU, idC, val) = tupla;
             agregarValoracion(idU, idC, val);
-            size_t procesadas = ++valoraciones_procesadas;
-            if (procesadas % (total_valoraciones / 100 == 0 ? 1 : total_valoraciones / 100) == 0 || procesadas == total_valoraciones) {
-                std::lock_guard<std::mutex> lock(print_mtx_val);
-                int percent = static_cast<int>((procesadas * 100) / total_valoraciones);
-                int barWidth = 50;
-                int pos = (percent * barWidth) / 100;
-                cout << "\r[";
-                for (int j = 0; j < barWidth; ++j) {
-                    if (j < pos) cout << "=";
-                    else if (j == pos) cout << ">";
-                    else cout << " ";
-                }
-                cout << "] " << percent << "% (agregando valoraciones)" << flush;
-            }
         }
-    };
-    for (unsigned int t = 0; t < num_threads; ++t) {
-        hilos_insertar.emplace_back(insertar_bloque, 0, 0, t);
     }
-    for (auto& h : hilos_insertar) h.join();
-    cout << "\r[==================================================] 100% (agregando valoraciones)\n";
 
     // Imprimir el tiempo de parsing con hilos
     cout << "Tiempo de parsing usando 4 hilos: " << dur_parallel << " ms" << endl;

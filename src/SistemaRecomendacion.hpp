@@ -42,6 +42,9 @@ public:
     vector<pair<int,float>> buscarValoracionesPorCancion(int idCancion) const;
     vector<pair<int,float>> buscarValoracionesPorUsuario(int idUsuario) const;
 
+    // Agrega valoraciones en paralelo usando 4 hilos (vector de tuplas)
+    void agregarValoracionesEnParalelo(const vector<tuple<int, int, float>>& valoraciones);
+
 private:
     // orden del B+ Tree
     static constexpr int ORDEN = 64;
